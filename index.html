@@ -26,6 +26,14 @@
 <main>
   <!-- 작성 -->
   <section id="tab-write" class="tab">
+    <div id="notice" class="banner info" hidden>
+      <p><strong>작성한 큐티는 이 폰(브라우저)에만 저장돼요.</strong><br>
+        서버나 다른 사람에게 전송되지 않고, 내보내기를 눌러 직접 보낸 파일만 밖으로 나가요.
+        <span id="notice-retention"></span> 보관 기간은 설정에서 바꿀 수 있어요.</p>
+      <div class="actions">
+        <button id="notice-ok" class="primary small">확인</button>
+      </div>
+    </div>
     <div id="backup-banner" class="banner" hidden>
       <p id="backup-banner-text"></p>
       <div class="actions">
@@ -85,6 +93,18 @@
         <select id="s-weekstart">
           <option value="1">월요일</option>
           <option value="0">일요일</option>
+        </select>
+      </label>
+    </div>
+    <div class="card">
+      <h2>보관 기간</h2>
+      <p class="hint">큐티는 이 폰에만 저장되고 어디에도 전송되지 않아요. 기간을 정하면 그보다 오래된 큐티는 자동으로 지워져요.</p>
+      <label>
+        <select id="s-retention">
+          <option value="0">계속 보관</option>
+          <option value="84">12주</option>
+          <option value="28">4주</option>
+          <option value="7">1주</option>
         </select>
       </label>
     </div>

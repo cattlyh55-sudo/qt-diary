@@ -161,6 +161,7 @@ button.danger {
   margin-bottom: 14px;
 }
 .banner p { margin: 0 0 10px; font-size: 14px; }
+.banner.info { background: var(--card); color: var(--ink); border-color: var(--line); }
 .banner .actions button { min-width: 0; }
 .banner button.ghost { color: #4a3b10; border-color: #e3c873; }
 @media (prefers-color-scheme: dark) {

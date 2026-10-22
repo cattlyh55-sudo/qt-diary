@@ -16,7 +16,7 @@
   }
 
   let entries = load(KEY_ENTRIES, []);
-  let profile = Object.assign({ group: '', name: '', weekStart: 1 }, load(KEY_PROFILE, {}));
+  let profile = Object.assign({ group: '', name: '', weekStart: 1, retentionDays: 0 }, load(KEY_PROFILE, {}));
   let current = null;
 
   // 휴지통: 30일 지난 항목은 자동으로 비운다
@@ -227,6 +227,24 @@
     });
   }
 
+  // ---------- 보관 기간 ----------
+  // 큐티 날짜와 마지막 수정이 모두 기간 밖이면 만료 (예전 날짜로 새로 쓴 글이 바로 지워지지 않도록)
+  function isExpired(e, days) {
+    if (!days) return false;
+    const limit = Date.now() - days * DAY;
+    return parseIso(e.date).getTime() < limit && (e.updatedAt || 0) < limit;
+  }
+  // 만료된 큐티는 휴지통을 거치지 않고 바로 지운다
+  function purgeExpired() {
+    const days = profile.retentionDays;
+    entries = entries.filter(e => !isExpired(e, days));
+    trash = trash.filter(e => !isExpired(e, days));
+    store(KEY_ENTRIES, entries);
+    store(KEY_TRASH, trash);
+  }
+  const retentionLabel = days => days ? `${days / 7}주` : '계속 보관';
+  const retentionWithRo = days => days ? `${days / 7}주로` : '계속 보관으로';
+
   $('btn-empty-trash').addEventListener('click', () => {
     if (!confirm(`휴지통의 큐티 ${trash.length}개를 영구 삭제할까요?\n되돌릴 수 없어요.`)) return;
     trash = [];
@@ -328,6 +346,27 @@
   }));
   $('s-weekstart').addEventListener('change', ev => { profile.weekStart = Number(ev.target.value); store(KEY_PROFILE, profile); });
 
+  $('s-retention').value = String(profile.retentionDays);
+  $('s-retention').addEventListener('change', ev => {
+    saveCurrent();
+    const days = Number(ev.target.value);
+    const n = entries.concat(trash).filter(e => isExpired(e, days)).length;
+    if (n && !confirm(`보관 기간을 ${retentionWithRo(days)} 바꾸면 그보다 오래된 큐티 ${n}개가 지금 바로 영구 삭제돼요.\n계속할까요?`)) {
+      ev.target.value = String(profile.retentionDays);
+      return;
+    }
+    profile.retentionDays = days;
+    store(KEY_PROFILE, profile);
+    purgeExpired();
+    if (current && !entries.includes(current) && current.updatedAt) openEntry(newDraft());
+    updateBackupUI();
+  });
+
+  $('notice-ok').addEventListener('click', () => {
+    store('qt.noticeSeen', true);
+    $('notice').hidden = true;
+  });
+
   function doBackup() {
     saveCurrent();
     const data = JSON.stringify({ app: 'qt-diary', version: 1, profile, entries, trash }, null, 1);
@@ -401,6 +440,12 @@
   });
 
   // ---------- 시작 ----------
+  purgeExpired();
+  if (!load('qt.noticeSeen', false)) {
+    $('notice-retention').textContent = `지금은 '${retentionLabel(profile.retentionDays)}'${profile.retentionDays ? '로' : '으로'} 설정돼 있고,`;
+    $('notice').hidden = false;
+  }
+
   const lastId = load(KEY_CURRENT, null);
   const t = today();
   const start = entries.find(e => e.id === lastId && e.date === t) || entries.find(e => e.date === t) || newDraft();
