@@ -1,6 +1,9 @@
 (function () {
   const $ = id => document.getElementById(id);
   const KEY_ENTRIES = 'qt.entries', KEY_PROFILE = 'qt.profile', KEY_CURRENT = 'qt.current';
+  const KEY_TRASH = 'qt.trash', KEY_BACKUP = 'qt.backup';
+  const DAY = 24 * 60 * 60 * 1000;
+  const TRASH_DAYS = 30, BACKUP_REMIND_DAYS = 14, SNOOZE_DAYS = 7;
   const FIELDS = ['group', 'name', 'date', 'passage', 'title', 'summary', 'meditation', 'application', 'prayer'];
   const CONTENT_FIELDS = ['passage', 'title', 'summary', 'meditation', 'application', 'prayer'];
 
@@ -15,6 +18,13 @@
   let entries = load(KEY_ENTRIES, []);
   let profile = Object.assign({ group: '', name: '', weekStart: 1 }, load(KEY_PROFILE, {}));
   let current = null;
+
+  // 휴지통: 30일 지난 항목은 자동으로 비운다
+  let trash = load(KEY_TRASH, []).filter(e => Date.now() - e.deletedAt < TRASH_DAYS * DAY);
+  store(KEY_TRASH, trash);
+
+  // 백업 기록: { at: 마지막 백업 시각, snoozeUntil: '나중에'를 누른 경우 다시 알릴 시각 }
+  let backupInfo = Object.assign({ at: 0, snoozeUntil: 0 }, load(KEY_BACKUP, {}));
 
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
@@ -154,10 +164,8 @@
         del.setAttribute('aria-label', '삭제');
         del.textContent = '✕';
         del.addEventListener('click', () => {
-          if (!confirm(`${short(e.date)} 큐티를 삭제할까요?`)) return;
-          entries = entries.filter(x => x !== e);
-          store(KEY_ENTRIES, entries);
-          if (current === e) openEntry(newDraft());
+          if (!confirm(`${short(e.date)} 큐티를 휴지통으로 옮길까요?\n(30일 안에 복원할 수 있어요)`)) return;
+          moveToTrash([e]);
           renderList();
         });
         row.append(main, del);
@@ -165,7 +173,66 @@
       });
       box.appendChild(card);
     }
+    renderTrash();
   }
+
+  // ---------- 휴지통 ----------
+  function moveToTrash(list) {
+    const now = Date.now();
+    list.forEach(e => { e.deletedAt = now; });
+    entries = entries.filter(x => !list.includes(x));
+    trash = trash.concat(list.filter(hasContent));
+    store(KEY_ENTRIES, entries);
+    store(KEY_TRASH, trash);
+    if (list.includes(current)) openEntry(newDraft());
+  }
+
+  function renderTrash() {
+    const box = $('trash-list');
+    box.innerHTML = '';
+    $('trash').hidden = trash.length === 0;
+    $('trash-count').textContent = `${trash.length}개`;
+    [...trash].sort((a, b) => b.deletedAt - a.deletedAt).forEach(e => {
+      const row = document.createElement('div');
+      row.className = 'entry-row';
+      const info = document.createElement('div');
+      info.className = 'entry-main';
+      info.innerHTML = '<span class="d"></span><span class="t"></span>';
+      const left = Math.max(1, Math.ceil((e.deletedAt + TRASH_DAYS * DAY - Date.now()) / DAY));
+      info.querySelector('.d').textContent = `${short(e.date)} · ${left}일 후 삭제`;
+      info.querySelector('.t').textContent = e.title || e.passage || '(제목 없음)';
+      const restore = document.createElement('button');
+      restore.className = 'ghost small';
+      restore.textContent = '복원';
+      restore.addEventListener('click', () => {
+        trash = trash.filter(x => x !== e);
+        delete e.deletedAt;
+        entries.push(e);
+        store(KEY_ENTRIES, entries);
+        store(KEY_TRASH, trash);
+        renderList();
+      });
+      const del = document.createElement('button');
+      del.className = 'icon';
+      del.setAttribute('aria-label', '영구 삭제');
+      del.textContent = '✕';
+      del.addEventListener('click', () => {
+        if (!confirm(`${short(e.date)} 큐티를 영구 삭제할까요?\n되돌릴 수 없어요.`)) return;
+        trash = trash.filter(x => x !== e);
+        store(KEY_TRASH, trash);
+        renderList();
+      });
+      row.append(info, restore, del);
+      box.appendChild(row);
+    });
+  }
+
+  $('btn-empty-trash').addEventListener('click', () => {
+    if (!confirm(`휴지통의 큐티 ${trash.length}개를 영구 삭제할까요?\n되돌릴 수 없어요.`)) return;
+    trash = [];
+    store(KEY_TRASH, trash);
+    renderList();
+  });
 
   // ---------- 내보내기 ----------
   const canShareFiles = (() => {
@@ -261,10 +328,48 @@
   }));
   $('s-weekstart').addEventListener('change', ev => { profile.weekStart = Number(ev.target.value); store(KEY_PROFILE, profile); });
 
-  $('btn-backup').addEventListener('click', () => {
+  function doBackup() {
     saveCurrent();
-    const data = JSON.stringify({ app: 'qt-diary', version: 1, profile, entries }, null, 1);
+    const data = JSON.stringify({ app: 'qt-diary', version: 1, profile, entries, trash }, null, 1);
     download(new File([data], `큐티일기_백업_${today()}.json`, { type: 'application/json' }));
+    backupInfo = { at: Date.now(), snoozeUntil: 0 };
+    store(KEY_BACKUP, backupInfo);
+    updateBackupUI();
+  }
+  $('btn-backup').addEventListener('click', doBackup);
+  $('banner-backup').addEventListener('click', doBackup);
+  $('banner-later').addEventListener('click', () => {
+    backupInfo.snoozeUntil = Date.now() + SNOOZE_DAYS * DAY;
+    store(KEY_BACKUP, backupInfo);
+    updateBackupUI();
+  });
+
+  // 마지막 백업(없으면 첫 큐티) 이후 14일이 지났고, 그 뒤로 새로 쓰거나 고친 큐티가 있으면 알린다
+  function updateBackupUI() {
+    const fmt = t => { const d = new Date(t); return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`; };
+    $('last-backup').textContent = backupInfo.at ? `마지막 백업: ${fmt(backupInfo.at)}` : '아직 백업한 적이 없어요.';
+
+    const saved = entries.filter(e => e.updatedAt);
+    const changed = saved.filter(e => e.updatedAt > backupInfo.at);
+    const since = backupInfo.at || Math.min(...saved.map(e => e.updatedAt));
+    const days = Math.floor((Date.now() - since) / DAY);
+    const show = changed.length > 0 && days >= BACKUP_REMIND_DAYS && Date.now() > backupInfo.snoozeUntil;
+    $('backup-banner').hidden = !show;
+    if (show) {
+      $('backup-banner-text').textContent = backupInfo.at
+        ? `마지막 백업 후 ${days}일이 지났어요. 그 뒤로 쓴 큐티 ${changed.length}개를 백업해 둘까요?`
+        : `큐티 ${changed.length}개가 이 기기에만 저장돼 있어요. 백업 파일을 한 번 저장해 둘까요?`;
+    }
+  }
+
+  $('btn-delete-all').addEventListener('click', () => {
+    saveCurrent();
+    const n = entries.filter(hasContent).length;
+    if (!n) return alert('삭제할 큐티가 없어요.');
+    if (!confirm(`모든 큐티 ${n}개를 휴지통으로 옮길까요?\n30일 안에는 모아보기 > 휴지통에서 복원할 수 있어요.`)) return;
+    moveToTrash([...entries]);
+    updateBackupUI();
+    alert(`${n}개를 휴지통으로 옮겼어요.`);
   });
   $('btn-restore').addEventListener('click', () => $('restore-file').click());
   $('restore-file').addEventListener('change', async ev => {
@@ -281,7 +386,14 @@
         if (!mine) { entries.push(e); added++; }
         else if ((e.updatedAt || 0) > (mine.updatedAt || 0)) Object.assign(mine, e);
       }
+      // 백업의 휴지통은 목록·휴지통 어디에도 없는 것만 휴지통으로, 목록으로 돌아온 건 휴지통에서 뺀다
+      const ids = new Set(entries.map(e => e.id));
+      const trashIds = new Set(trash.map(e => e.id));
+      (data.trash || []).forEach(e => { if (!ids.has(e.id) && !trashIds.has(e.id)) trash.push(e); });
+      trash = trash.filter(e => !ids.has(e.id));
       store(KEY_ENTRIES, entries);
+      store(KEY_TRASH, trash);
+      updateBackupUI();
       alert(`불러오기 완료: 새 큐티 ${added}개`);
     } catch {
       alert('백업 파일을 읽지 못했어요.');
@@ -293,6 +405,7 @@
   const t = today();
   const start = entries.find(e => e.id === lastId && e.date === t) || entries.find(e => e.date === t) || newDraft();
   openEntry(start);
+  updateBackupUI();
 
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -137,6 +137,38 @@ button.icon {
 .entry-main .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty { text-align: center; color: var(--sub); padding: 48px 0; }
 
+button.danger {
+  padding: 13px 16px;
+  border-radius: 12px;
+  border: 1px solid #c0392b;
+  background: transparent;
+  color: #c0392b;
+  font-weight: 700;
+  cursor: pointer;
+}
+.trash summary { cursor: pointer; font-weight: 700; padding: 2px 4px; }
+.trash[open] summary { margin-bottom: 8px; }
+.trash .entry-main { cursor: default; flex-direction: column-reverse; gap: 2px; padding: 8px 4px; }
+.trash .entry-main .d { font-size: 13px; }
+.trash .actions { margin-top: 12px; }
+
+.banner {
+  background: #fff6dd;
+  color: #4a3b10;
+  border: 1px solid #f0d78a;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.banner p { margin: 0 0 10px; font-size: 14px; }
+.banner .actions button { min-width: 0; }
+.banner button.ghost { color: #4a3b10; border-color: #e3c873; }
+@media (prefers-color-scheme: dark) {
+  .banner { background: #3a3218; color: #f3e3b0; border-color: #6b5a24; }
+  .banner button.ghost { color: #f3e3b0; border-color: #6b5a24; }
+  button.danger { color: #ff7b6b; border-color: #ff7b6b; }
+}
+
 /* 모달 */
 .modal {
   position: fixed;

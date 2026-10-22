@@ -26,6 +26,13 @@
 <main>
   <!-- 작성 -->
   <section id="tab-write" class="tab">
+    <div id="backup-banner" class="banner" hidden>
+      <p id="backup-banner-text"></p>
+      <div class="actions">
+        <button id="banner-backup" class="primary small">지금 백업</button>
+        <button id="banner-later" class="ghost small">나중에</button>
+      </div>
+    </div>
     <div class="card meta">
       <div class="row">
         <label class="f-group">조<input id="f-group" inputmode="numeric" autocomplete="off"></label>
@@ -55,6 +62,14 @@
   <section id="tab-list" class="tab" hidden>
     <div id="week-list"></div>
     <p class="empty" id="list-empty" hidden>아직 작성한 큐티가 없어요.</p>
+    <details id="trash" class="card trash" hidden>
+      <summary>휴지통 <span id="trash-count" class="count"></span></summary>
+      <p class="hint">지운 큐티는 30일 동안 보관된 뒤 자동으로 사라져요.</p>
+      <div id="trash-list"></div>
+      <div class="actions">
+        <button id="btn-empty-trash" class="danger">휴지통 비우기 (영구 삭제)</button>
+      </div>
+    </details>
   </section>
 
   <!-- 설정 -->
@@ -76,10 +91,18 @@
     <div class="card">
       <h2>백업</h2>
       <p class="hint">작성한 내용은 이 기기 브라우저에만 저장돼요. 폰을 바꾸거나 브라우저 데이터를 지우기 전에 백업해 두세요.</p>
+      <p class="hint" id="last-backup"></p>
       <div class="actions">
         <button id="btn-backup" class="ghost">백업 파일 저장</button>
         <button id="btn-restore" class="ghost">백업 불러오기</button>
         <input id="restore-file" type="file" accept="application/json,.json" hidden>
+      </div>
+    </div>
+    <div class="card">
+      <h2>데이터 삭제</h2>
+      <p class="hint">모든 큐티를 휴지통으로 옮겨요. 완전히 지우려면 모아보기 아래 휴지통에서 "휴지통 비우기"를 눌러 주세요.</p>
+      <div class="actions">
+        <button id="btn-delete-all" class="danger">모든 큐티 삭제</button>
       </div>
     </div>
   </section>
