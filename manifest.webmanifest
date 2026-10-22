@@ -1,0 +1,16 @@
+{
+  "name": "큐티일기",
+  "short_name": "큐티일기",
+  "description": "CDC 큐티일기 양식 작성 및 PDF/사진 내보내기",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f3f1",
+  "theme_color": "#2b2b2b",
+  "lang": "ko",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
