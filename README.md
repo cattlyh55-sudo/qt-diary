@@ -31,5 +31,5 @@ python3 -m http.server 8000
 - `index.html`, `style.css`, `app.js` — 화면과 저장/내보내기 로직
 - `render.js` — 양식을 캔버스에 그리는 코드 (좌표는 원본 PDF 기준 pt)
 - `assets/header.png` — 원본 양식에서 잘라낸 헤더(로고 + 입력칸)
-- `sw.js` — 오프라인 캐시. 파일 수정 후 배포할 때 `VERSION`을 올려 준다
+- `sw.js` — 오프라인 캐시. 파일 수정 후 배포할 때 `VERSION`과 `index.html`의 `?v=` 숫자를 함께 올려 준다
 - `vendor/jspdf.umd.min.js` — jsPDF 2.5.1

@@ -11,7 +11,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
-<link rel="stylesheet" href="style.css">
+<!-- 파일을 고쳐 배포할 때 ?v= 숫자를 sw.js의 VERSION과 함께 올린다 (예전 파일이 섞여 열리지 않도록) -->
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <header class="topbar">
@@ -199,7 +200,7 @@
 </div>
 
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="render.js"></script>
-<script src="app.js"></script>
+<script src="render.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
