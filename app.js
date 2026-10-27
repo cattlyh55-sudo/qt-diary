@@ -181,7 +181,19 @@
       box.appendChild(card);
     }
     renderTrash();
+    renderStats();
     renderCalendar();
+  }
+
+  // 작성한 날 수 (같은 날 여러 개는 하루로 센다)
+  function renderStats() {
+    const days = [...new Set(entries.filter(hasContent).map(e => e.date))];
+    const t = today();
+    const wStart = weekStartOf(t), wEnd = addDays(wStart, 6);
+    const monthPrefix = t.slice(0, 8);
+    $('stat-week').textContent = days.filter(d => d >= wStart && d <= wEnd).length;
+    $('stat-month').textContent = days.filter(d => d.startsWith(monthPrefix)).length;
+    $('stat-total').textContent = days.length;
   }
 
   // ---------- 달력 ----------

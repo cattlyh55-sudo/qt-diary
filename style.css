@@ -137,6 +137,13 @@ button.icon {
 .entry-main .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty { text-align: center; color: var(--sub); padding: 48px 0; }
 
+/* 작성 횟수 */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; padding: 14px 8px; }
+.stats div + div { border-left: 1px solid var(--line); }
+.stats strong { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+.stats strong::after { content: "일"; font-size: 14px; font-weight: 400; margin-left: 2px; color: var(--sub); }
+.stats span { font-size: 13px; color: var(--sub); }
+
 /* 달력 */
 .cal-head { display: flex; align-items: center; justify-content: space-between; }
 .cal-head strong { font-size: 17px; }
