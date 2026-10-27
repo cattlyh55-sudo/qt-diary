@@ -12,7 +12,7 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <!-- 파일을 고쳐 배포할 때 ?v= 숫자를 sw.js의 VERSION과 함께 올린다 (예전 파일이 섞여 열리지 않도록) -->
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <header class="topbar">
@@ -25,6 +25,17 @@
 </header>
 
 <main>
+  <!-- 카톡 등 앱 안 브라우저로 열었을 때 -->
+  <div id="inapp" class="banner" hidden>
+    <p><strong id="inapp-title"></strong><br>
+      이대로 쓰면 기록이 제대로 저장되지 않을 수 있어요. 아이폰은 Safari, 안드로이드는 Chrome으로 열어 주세요.</p>
+    <p id="inapp-how"></p>
+    <div class="actions">
+      <button id="inapp-open" class="primary small">다른 브라우저로 열기</button>
+      <button id="inapp-stay" class="ghost small">그냥 여기서 쓰기</button>
+    </div>
+  </div>
+
   <!-- 작성 -->
   <section id="tab-write" class="tab">
     <div id="notice" class="banner info" hidden>
@@ -49,6 +60,7 @@
       </div>
       <label>날짜<input id="f-date" type="date"></label>
       <label>본문<input id="f-passage" placeholder="예) 요한복음 3:16-21" autocomplete="off"></label>
+      <div id="passage-help" class="chips passage-help" hidden></div>
       <label>제목<input id="f-title" autocomplete="off"></label>
     </div>
 
@@ -72,8 +84,12 @@
     <div class="card stats">
       <div><strong id="stat-week">0</strong><span>이번 주</span></div>
       <div><strong id="stat-month">0</strong><span>이번 달</span></div>
+      <div><strong id="stat-streak">0</strong><span>연속</span></div>
       <div><strong id="stat-total">0</strong><span>전체</span></div>
     </div>
+    <input id="search" class="search" type="search" placeholder="🔍 제목·본문·내용 검색" autocomplete="off">
+    <div id="search-results" hidden></div>
+    <div id="list-main">
     <div id="cal" class="card cal">
       <div class="cal-head">
         <button id="cal-prev" class="icon" aria-label="이전 달">‹</button>
@@ -104,10 +120,16 @@
         <button id="btn-empty-trash" class="danger">휴지통 비우기 (영구 삭제)</button>
       </div>
     </details>
+    </div>
   </section>
 
   <!-- 설정 -->
   <section id="tab-settings" class="tab" hidden>
+    <div class="card">
+      <h2>도움말</h2>
+      <p class="hint">사용법이 궁금하면 설명서를 열어 보세요. 친구에게 그대로 전달해도 돼요.</p>
+      <a class="ghost linkbtn" href="manual/qt-diary-manual.pdf" target="_blank" rel="noopener">사용 설명서 보기 (PDF)</a>
+    </div>
     <div class="card">
       <h2>기본 정보</h2>
       <p class="hint">새로 쓸 때 자동으로 채워져요.</p>
@@ -200,7 +222,8 @@
 </div>
 
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="render.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="bible.js?v=7"></script>
+<script src="render.js?v=7"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

@@ -1,12 +1,13 @@
 // 앱 파일을 캐시해서 오프라인에서도 열리게 한다.
 // 파일을 고치면 VERSION과 index.html의 ?v= 숫자를 함께 올릴 것.
-const VERSION = 'qt-diary-v6';
+const VERSION = 'qt-diary-v7';
 const FILES = [
   './',
   'index.html',
   'style.css',
   'app.js',
   'render.js',
+  'bible.js',
   'manifest.webmanifest',
   'assets/header.png',
   'icons/icon-180.png',

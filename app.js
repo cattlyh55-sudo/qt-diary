@@ -60,6 +60,7 @@
     document.querySelectorAll('textarea').forEach(autosize);
     store(KEY_CURRENT, e.id);
     setStatus(entries.includes(e) ? '' : '새 큐티');
+    updatePassageHelp();
   }
 
   let saveTimer = null;
@@ -100,6 +101,58 @@
   }
 
   FIELDS.forEach(f => $('f-' + f).addEventListener('input', onEdit));
+
+  // ---------- 본문 도우미 ----------
+  // 본문이 비어 있으면 다음 본문 시작점을, 책 이름을 쓰는 중이면 이름 후보를 보여 준다
+  function nextPassageSuggestion() {
+    const prev = entries
+      .filter(e => e !== current && (e.passage || '').trim() && e.date <= current.date)
+      .sort((a, b) => b.date.localeCompare(a.date) || (b.updatedAt || 0) - (a.updatedAt || 0));
+    for (const e of prev) {
+      const s = QTBible.nextStart(e.passage);
+      if (s) return s;
+    }
+    return null;
+  }
+
+  function fillPassage(text) {
+    const input = $('f-passage');
+    input.value = text;
+    input.dispatchEvent(new Event('input')); // onEdit → 저장
+    input.focus();
+    input.setSelectionRange(text.length, text.length);
+  }
+
+  function updatePassageHelp() {
+    const box = $('passage-help');
+    box.innerHTML = '';
+    const value = $('f-passage').value;
+    if (!value.trim()) {
+      const s = nextPassageSuggestion();
+      if (s) {
+        const label = document.createElement('span');
+        label.className = 'next-label';
+        label.textContent = `다음 본문: ${s.label}`;
+        const btn = document.createElement('button');
+        btn.className = 'next-fill';
+        btn.textContent = '넣기';
+        btn.addEventListener('click', () => fillPassage(s.text));
+        box.append(label, btn);
+      }
+    } else {
+      QTBible.matchBooks(value).forEach(name => {
+        const btn = document.createElement('button');
+        btn.textContent = name;
+        btn.addEventListener('click', () => fillPassage(name + ' '));
+        box.appendChild(btn);
+      });
+    }
+    box.hidden = !box.children.length;
+  }
+  // 칩을 눌러도 입력칸 포커스(키보드)가 유지되도록
+  $('passage-help').addEventListener('pointerdown', ev => { if (ev.target.tagName === 'BUTTON') ev.preventDefault(); });
+  ['f-passage', 'f-date'].forEach(id => $(id).addEventListener('input', updatePassageHelp));
+
   window.addEventListener('pagehide', saveCurrent);
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveCurrent(); });
 
@@ -183,6 +236,7 @@
     renderTrash();
     renderStats();
     renderCalendar();
+    applySearch();
   }
 
   // 작성한 날 수 (같은 날 여러 개는 하루로 센다)
@@ -194,7 +248,85 @@
     $('stat-week').textContent = days.filter(d => d >= wStart && d <= wEnd).length;
     $('stat-month').textContent = days.filter(d => d.startsWith(monthPrefix)).length;
     $('stat-total').textContent = days.length;
+
+    // 연속: 오늘(아직 안 썼으면 어제)부터 거슬러 올라가며 빠짐없이 쓴 날 수
+    const set = new Set(days);
+    let d = set.has(t) ? t : addDays(t, -1);
+    let streak = 0;
+    while (set.has(d)) { streak++; d = addDays(d, -1); }
+    $('stat-streak').textContent = streak;
   }
+
+  // ---------- 검색 ----------
+  const SEARCH_FIELDS = ['passage', 'title', 'summary', 'meditation', 'application', 'prayer'];
+
+  function applySearch() {
+    const words = $('search').value.toLowerCase().split(/\s+/).filter(Boolean);
+    const box = $('search-results');
+    $('list-main').hidden = words.length > 0;
+    box.hidden = words.length === 0;
+    box.innerHTML = '';
+    if (!words.length) return;
+
+    const hits = entries.filter(hasContent)
+      .filter(e => {
+        const all = SEARCH_FIELDS.map(f => e[f] || '').join('\n').toLowerCase();
+        return words.every(w => all.includes(w));
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    const card = document.createElement('div');
+    card.className = 'card week';
+    const head = document.createElement('div');
+    head.className = 'week-head';
+    head.innerHTML = '<strong></strong>';
+    head.querySelector('strong').textContent = hits.length ? `검색 결과 ${hits.length}개` : '찾는 큐티가 없어요';
+    card.appendChild(head);
+
+    hits.forEach(e => {
+      const row = document.createElement('button');
+      row.className = 'search-hit';
+      const top = document.createElement('div');
+      top.innerHTML = '<span class="d"></span><span class="t"></span>';
+      top.querySelector('.d').textContent = short(e.date);
+      top.querySelector('.t').textContent = e.title || e.passage || '(제목 없음)';
+      row.appendChild(top);
+      // 첫 번째 단어가 처음 나오는 곳 앞뒤를 보여 주고, 모든 검색어를 강조
+      const field = SEARCH_FIELDS.find(f => (e[f] || '').toLowerCase().includes(words[0]));
+      const text = (e[field] || '').replace(/\s+/g, ' ');
+      const at = text.toLowerCase().indexOf(words[0]);
+      const from = Math.max(0, at - 40), to = Math.min(text.length, at + words[0].length + 40);
+      const snippet = (from > 0 ? '…' : '') + text.slice(from, to) + (to < text.length ? '…' : '');
+      const p = document.createElement('p');
+      p.className = 'snippet';
+      appendHighlighted(p, snippet, words);
+      row.appendChild(p);
+      row.addEventListener('click', () => openDay(e.date));
+      card.appendChild(row);
+    });
+    box.appendChild(card);
+  }
+
+  // 검색어 부분만 <mark>로 감싼다 (글자는 textContent로만 넣는다)
+  function appendHighlighted(el, text, words) {
+    const lower = text.toLowerCase();
+    let i = 0;
+    while (i < text.length) {
+      let best = -1, len = 0;
+      words.forEach(w => {
+        const j = lower.indexOf(w, i);
+        if (j !== -1 && (best === -1 || j < best)) { best = j; len = w.length; }
+      });
+      if (best === -1) { el.append(text.slice(i)); break; }
+      el.append(text.slice(i, best));
+      const m = document.createElement('mark');
+      m.textContent = text.slice(best, best + len);
+      el.appendChild(m);
+      i = best + len;
+    }
+  }
+
+  $('search').addEventListener('input', applySearch);
 
   // ---------- 달력 ----------
   // 읽기 전용: entries를 날짜별로 모아 보여 주기만 하고 저장하지 않는다
@@ -302,6 +434,8 @@
 
   // ---------- 날짜 골라 내보내기 ----------
   function enterSelect() {
+    $('search').value = '';
+    applySearch();
     selecting = true;
     selected.clear();
     $('cal').classList.add('selecting');
@@ -662,6 +796,30 @@
       alert('백업 파일을 읽지 못했어요.');
     }
   });
+
+  // ---------- 앱 안 브라우저 안내 ----------
+  // 카톡 등 앱 안 브라우저는 저장소가 불안정해서 Safari/Chrome으로 열도록 안내한다
+  (function checkInApp() {
+    const ua = navigator.userAgent;
+    const kakao = /KAKAOTALK/i.test(ua);
+    const inApp = kakao || /Instagram|FBAN|FBAV|Line\/|NAVER\(inapp|DaumApps|everytimeApp/i.test(ua);
+    let stayed = false;
+    try { stayed = sessionStorage.getItem('qt.inappStay') === '1'; } catch {}
+    if (!inApp || stayed) return;
+    $('inapp-title').textContent = kakao ? '카카오톡 안에서 열려 있어요.' : '앱 안의 브라우저로 열려 있어요.';
+    $('inapp-how').textContent = kakao
+      ? '아래 버튼이 안 되면 오른쪽 위(또는 아래) 메뉴에서 "다른 브라우저로 열기"를 눌러 주세요.'
+      : '오른쪽 위(또는 아래) 메뉴에서 "브라우저로 열기"를 눌러 주세요.';
+    $('inapp-open').hidden = !kakao;
+    $('inapp').hidden = false;
+    $('inapp-open').addEventListener('click', () => {
+      location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
+    });
+    $('inapp-stay').addEventListener('click', () => {
+      try { sessionStorage.setItem('qt.inappStay', '1'); } catch {}
+      $('inapp').hidden = true;
+    });
+  })();
 
   // ---------- 시작 ----------
   purgeExpired();
