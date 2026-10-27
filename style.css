@@ -137,6 +137,74 @@ button.icon {
 .entry-main .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty { text-align: center; color: var(--sub); padding: 48px 0; }
 
+/* 달력 */
+.cal-head { display: flex; align-items: center; justify-content: space-between; }
+.cal-head strong { font-size: 17px; }
+.cal-head .icon { font-size: 26px; line-height: 1; padding: 2px 14px; color: var(--ink); }
+.cal-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; }
+.cal-sub .hint { margin: 0; }
+#cal-select-hint { margin: 0 0 10px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.cal-wd { font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+.cal-wd span:first-child { color: #c0392b; }
+#cal-days { user-select: none; -webkit-user-select: none; }
+.cal-day {
+  width: 100%;
+  max-width: 44px;
+  aspect-ratio: 1;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+.cal-day.out { opacity: 0.35; }
+.cal-day.today { box-shadow: inset 0 0 0 1.5px var(--sub); }
+.cal-day.has { background: var(--accent); color: var(--accent-ink); font-weight: 700; cursor: pointer; }
+.cal.selecting #cal-days { touch-action: none; }
+.cal.selecting .cal-day:not(.has) { opacity: 0.25; }
+.cal.selecting .cal-day.has:not(.sel) { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--accent); }
+.cal.selecting .cal-day.sel { background: #2f6fde; color: #fff; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.chips button {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--field);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.select-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+}
+.select-bar-inner { max-width: 680px; margin: 0 auto; display: flex; align-items: center; gap: 8px; }
+.select-bar-inner span { flex: 1; font-weight: 700; }
+.select-bar-inner button:disabled { opacity: 0.4; cursor: default; }
+body.selecting main { padding-bottom: 96px; }
+
+/* 날짜 팝업 */
+.day-body { overflow-y: auto; flex: 1; }
+.day-entry { padding: 4px 2px 16px; }
+.day-entry + .day-entry { border-top: 1px solid var(--line); padding-top: 16px; }
+.day-entry h3 { margin: 0; font-size: 17px; }
+.day-entry .passage { margin: 2px 0 0; color: var(--sub); font-size: 14px; }
+.day-entry h4 { margin: 14px 0 2px; font-size: 13px; color: var(--sub); }
+.day-entry p { margin: 0; white-space: pre-wrap; line-height: 1.6; }
+.day-entry .actions { margin-top: 16px; }
+
 button.danger {
   padding: 13px 16px;
   border-radius: 12px;

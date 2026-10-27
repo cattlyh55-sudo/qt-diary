@@ -68,6 +68,26 @@
 
   <!-- 모아보기 -->
   <section id="tab-list" class="tab" hidden>
+    <div id="cal" class="card cal">
+      <div class="cal-head">
+        <button id="cal-prev" class="icon" aria-label="이전 달">‹</button>
+        <strong id="cal-title"></strong>
+        <button id="cal-next" class="icon" aria-label="다음 달">›</button>
+      </div>
+      <div class="cal-sub">
+        <span id="cal-summary" class="hint"></span>
+        <button id="btn-select-mode" class="ghost small">날짜 골라 내보내기</button>
+      </div>
+      <p id="cal-select-hint" class="hint" hidden>내보낼 날짜를 누르거나, 누른 채로 끌어서 골라 주세요.</p>
+      <div class="cal-grid cal-wd"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="cal-grid" id="cal-days"></div>
+      <div id="cal-chips" class="chips" hidden>
+        <button data-pick="thisweek">이번 주</button>
+        <button data-pick="lastweek">지난 주</button>
+        <button data-pick="month">이 달 전체</button>
+        <button data-pick="clear">전체 해제</button>
+      </div>
+    </div>
     <div id="week-list"></div>
     <p class="empty" id="list-empty" hidden>아직 작성한 큐티가 없어요.</p>
     <details id="trash" class="card trash" hidden>
@@ -91,8 +111,9 @@
       </div>
       <label>한 주의 시작
         <select id="s-weekstart">
-          <option value="1">월요일</option>
           <option value="0">일요일</option>
+          <option value="1">월요일</option>
+          <option value="3">수요일</option>
         </select>
       </label>
     </div>
@@ -127,6 +148,26 @@
     </div>
   </section>
 </main>
+
+<!-- 날짜 골라 내보내기: 하단 바 -->
+<div id="select-bar" class="select-bar" hidden>
+  <div class="select-bar-inner">
+    <span id="sel-count"></span>
+    <button id="sel-cancel" class="ghost small">취소</button>
+    <button id="sel-export" class="primary small">내보내기</button>
+  </div>
+</div>
+
+<!-- 달력 날짜 팝업 -->
+<div id="day-modal" class="modal" hidden>
+  <div class="sheet">
+    <div class="sheet-head">
+      <strong id="day-title"></strong>
+      <button id="day-close" class="icon" aria-label="닫기">✕</button>
+    </div>
+    <div id="day-body" class="day-body"></div>
+  </div>
+</div>
 
 <!-- 내보내기 모달 -->
 <div id="modal" class="modal" hidden>

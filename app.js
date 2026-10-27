@@ -53,7 +53,9 @@
   }
 
   function openEntry(e) {
+    saveCurrent();
     current = e;
+    dirty = false;
     FIELDS.forEach(f => { $('f-' + f).value = e[f] || ''; });
     document.querySelectorAll('textarea').forEach(autosize);
     store(KEY_CURRENT, e.id);
@@ -61,9 +63,11 @@
   }
 
   let saveTimer = null;
+  let dirty = false; // 실제로 고친 게 있을 때만 저장 (열어 보기만 해도 수정 시각이 바뀌지 않도록)
   function onEdit(ev) {
     const f = ev.target.id.slice(2);
     current[f] = ev.target.value;
+    dirty = true;
     if (f === 'group' || f === 'name') {
       profile[f] = ev.target.value;
       store(KEY_PROFILE, profile);
@@ -75,11 +79,13 @@
   }
 
   function saveCurrent() {
-    if (!current) return;
+    clearTimeout(saveTimer);
+    if (!current || !dirty) return;
     if (!entries.includes(current)) {
       if (!hasContent(current)) return;
       entries.push(current);
     }
+    dirty = false;
     current.updatedAt = Date.now();
     const ok = store(KEY_ENTRIES, entries);
     const t = new Date();
@@ -108,13 +114,14 @@
   $('btn-export').addEventListener('click', () => {
     saveCurrent();
     if (!hasContent(current)) return alert('내용을 먼저 작성해 주세요.');
-    openExport([current], `${current.date}`);
+    openExport([current], `${current.date}`, '미리보기');
   });
 
   // ---------- 탭 ----------
   function showTab(name) {
     document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
     document.querySelectorAll('.tab').forEach(s => { s.hidden = s.id !== 'tab-' + name; });
+    if (name !== 'list') exitSelect();
     if (name === 'list') renderList();
     if (name === 'write') document.querySelectorAll('textarea').forEach(autosize);
     window.scrollTo(0, 0);
@@ -144,7 +151,7 @@
       btn.className = 'primary small';
       btn.textContent = '이 주 내보내기';
       btn.addEventListener('click', () => {
-        openExport([...list].sort((a, b) => a.date.localeCompare(b.date)), `${start}~${end}`);
+        openExport([...list].sort((a, b) => a.date.localeCompare(b.date)), `${start}~${end}`, `주간 묶음 · ${list.length}개`);
       });
       head.appendChild(btn);
       card.appendChild(head);
@@ -174,7 +181,212 @@
       box.appendChild(card);
     }
     renderTrash();
+    renderCalendar();
   }
+
+  // ---------- 달력 ----------
+  // 읽기 전용: entries를 날짜별로 모아 보여 주기만 하고 저장하지 않는다
+  let calMonth = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
+  let selecting = false;
+  const selected = new Set(); // 고른 날짜(iso)
+
+  function entriesByDate() {
+    const map = new Map();
+    entries.filter(hasContent).forEach(e => {
+      if (!map.has(e.date)) map.set(e.date, []);
+      map.get(e.date).push(e);
+    });
+    return map;
+  }
+
+  function renderCalendar() {
+    const byDate = entriesByDate();
+    const y = calMonth.getFullYear(), m = calMonth.getMonth();
+    $('cal-title').textContent = `${y}년 ${m + 1}월`;
+    const prefix = `${y}-${pad(m + 1)}-`;
+    const written = [...byDate.keys()].filter(d => d.startsWith(prefix)).length;
+    $('cal-summary').textContent = `${m + 1}월 ${written}일 작성`;
+
+    const grid = $('cal-days');
+    grid.innerHTML = '';
+    const first = new Date(y, m, 1);
+    const cells = Math.ceil((first.getDay() + new Date(y, m + 1, 0).getDate()) / 7) * 7;
+    const t = today();
+    for (let i = 0; i < cells; i++) {
+      const d = new Date(y, m, 1 - first.getDay() + i);
+      const iso = isoOf(d);
+      const cell = document.createElement('button');
+      cell.className = 'cal-day';
+      cell.dataset.date = iso;
+      cell.textContent = d.getDate();
+      if (d.getMonth() !== m) cell.classList.add('out');
+      if (iso === t) cell.classList.add('today');
+      if (byDate.has(iso)) cell.classList.add('has');
+      if (selected.has(iso)) cell.classList.add('sel');
+      grid.appendChild(cell);
+    }
+    updateSelCount();
+  }
+
+  $('cal-prev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); });
+  $('cal-next').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); });
+
+  // 보기 모드: 기록 있는 날을 누르면 그날 큐티를 띄운다
+  $('cal-days').addEventListener('click', ev => {
+    const cell = ev.target.closest('.cal-day');
+    if (selecting || !cell || !cell.classList.contains('has')) return;
+    openDay(cell.dataset.date);
+  });
+
+  function openDay(iso) {
+    const list = entriesByDate().get(iso) || [];
+    $('day-title').textContent = QTRender.formatDateKo(iso);
+    const body = $('day-body');
+    body.innerHTML = '';
+    const SECS = [['summary', '요약'], ['meditation', '묵상'], ['application', '적용'], ['prayer', '기도']];
+    list.forEach(e => {
+      const box = document.createElement('div');
+      box.className = 'day-entry';
+      const h = document.createElement('h3');
+      h.textContent = e.title || '(제목 없음)';
+      box.appendChild(h);
+      if (e.passage) {
+        const p = document.createElement('p');
+        p.className = 'passage';
+        p.textContent = e.passage;
+        box.appendChild(p);
+      }
+      SECS.forEach(([k, label]) => {
+        if (!(e[k] || '').trim()) return;
+        const h4 = document.createElement('h4');
+        h4.textContent = label;
+        const p = document.createElement('p');
+        p.textContent = e[k];
+        box.append(h4, p);
+      });
+      const acts = document.createElement('div');
+      acts.className = 'actions';
+      const edit = document.createElement('button');
+      edit.className = 'ghost';
+      edit.textContent = '수정하기';
+      edit.addEventListener('click', () => { closeDay(); openEntry(e); showTab('write'); });
+      const exp = document.createElement('button');
+      exp.className = 'primary';
+      exp.textContent = '내보내기';
+      exp.addEventListener('click', () => { closeDay(); openExport([e], e.date, '미리보기'); });
+      acts.append(edit, exp);
+      box.appendChild(acts);
+      body.appendChild(box);
+    });
+    $('day-modal').hidden = false;
+    document.body.classList.add('noscroll');
+  }
+  function closeDay() {
+    $('day-modal').hidden = true;
+    document.body.classList.remove('noscroll');
+  }
+  $('day-close').addEventListener('click', closeDay);
+  $('day-modal').addEventListener('click', ev => { if (ev.target === $('day-modal')) closeDay(); });
+
+  // ---------- 날짜 골라 내보내기 ----------
+  function enterSelect() {
+    selecting = true;
+    selected.clear();
+    $('cal').classList.add('selecting');
+    document.body.classList.add('selecting');
+    $('btn-select-mode').hidden = true;
+    $('cal-chips').hidden = false;
+    $('cal-select-hint').hidden = false;
+    $('select-bar').hidden = false;
+    renderCalendar();
+  }
+  function exitSelect() {
+    if (!selecting) return;
+    selecting = false;
+    selected.clear();
+    $('cal').classList.remove('selecting');
+    document.body.classList.remove('selecting');
+    $('btn-select-mode').hidden = false;
+    $('cal-chips').hidden = true;
+    $('cal-select-hint').hidden = true;
+    $('select-bar').hidden = true;
+    renderCalendar();
+  }
+  $('btn-select-mode').addEventListener('click', enterSelect);
+  $('sel-cancel').addEventListener('click', exitSelect);
+
+  const selectedEntries = () => entries.filter(e => hasContent(e) && selected.has(e.date))
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.updatedAt || 0) - (b.updatedAt || 0));
+
+  function updateSelCount() {
+    const n = selectedEntries().length;
+    $('sel-count').textContent = n ? `${n}개 선택됨` : '날짜를 골라 주세요';
+    $('sel-export').disabled = n === 0;
+  }
+
+  function setSel(iso, on) {
+    if (on) selected.add(iso); else selected.delete(iso);
+    const cell = $('cal-days').querySelector(`[data-date="${iso}"]`);
+    if (cell) cell.classList.toggle('sel', on);
+  }
+
+  // 터치/클릭으로 토글, 누른 채 끌면 지나간 날짜에 같은 동작(선택 또는 해제)을 적용
+  let drag = null;
+  $('cal-days').addEventListener('pointerdown', ev => {
+    if (!selecting) return;
+    const cell = ev.target.closest('.cal-day.has');
+    if (!cell) return;
+    ev.preventDefault();
+    drag = { add: !selected.has(cell.dataset.date) };
+    setSel(cell.dataset.date, drag.add);
+    try { $('cal-days').setPointerCapture(ev.pointerId); } catch {}
+    updateSelCount();
+  });
+  $('cal-days').addEventListener('pointermove', ev => {
+    if (!drag) return;
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    const cell = el && el.closest('.cal-day.has');
+    if (cell && selected.has(cell.dataset.date) !== drag.add) {
+      setSel(cell.dataset.date, drag.add);
+      updateSelCount();
+    }
+  });
+  ['pointerup', 'pointercancel'].forEach(t => $('cal-days').addEventListener(t, () => { drag = null; }));
+
+  $('cal-chips').addEventListener('click', ev => {
+    const pick = ev.target.dataset && ev.target.dataset.pick;
+    if (!pick) return;
+    if (pick === 'clear') {
+      selected.clear();
+    } else {
+      let from, to;
+      if (pick === 'month') {
+        from = isoOf(calMonth);
+        to = isoOf(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0));
+      } else {
+        from = weekStartOf(today());
+        if (pick === 'lastweek') from = addDays(from, -7);
+        to = addDays(from, 6);
+      }
+      const dates = [...entriesByDate().keys()].filter(d => d >= from && d <= to);
+      if (!dates.length) {
+        $('sel-count').textContent = '그 기간에 쓴 큐티가 없어요';
+        return;
+      }
+      dates.forEach(d => selected.add(d));
+      // 고른 기간이 보이도록 달력 이동
+      const f = parseIso(dates[0]);
+      calMonth = new Date(f.getFullYear(), f.getMonth(), 1);
+    }
+    renderCalendar();
+  });
+
+  $('sel-export').addEventListener('click', () => {
+    const list = selectedEntries();
+    if (!list.length) return;
+    const first = list[0].date, last = list[list.length - 1].date;
+    openExport(list, first === last ? first : `${first}~${last}`, list.length > 1 ? `선택 묶음 · ${list.length}개` : '미리보기');
+  });
 
   // ---------- 휴지통 ----------
   function moveToTrash(list) {
@@ -184,7 +396,7 @@
     trash = trash.concat(list.filter(hasContent));
     store(KEY_ENTRIES, entries);
     store(KEY_TRASH, trash);
-    if (list.includes(current)) openEntry(newDraft());
+    if (list.includes(current)) { dirty = false; openEntry(newDraft()); }
   }
 
   function renderTrash() {
@@ -266,11 +478,11 @@
 
   let prepared = null; // { pdf: File, png: File[] }
 
-  async function openExport(list, rangeLabel) {
+  async function openExport(list, rangeLabel, title) {
     prepared = null;
     $('modal').hidden = false;
     document.body.classList.add('noscroll');
-    $('modal-title').textContent = list.length > 1 ? `주간 묶음 · ${list.length}개` : '미리보기';
+    $('modal-title').textContent = title;
     $('preview').innerHTML = '<p class="hint">만드는 중…</p>';
     $('export-buttons').classList.add('disabled');
     $('modal-status').textContent = '';

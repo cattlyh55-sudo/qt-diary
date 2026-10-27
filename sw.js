@@ -1,5 +1,5 @@
 // 앱 파일을 캐시해서 오프라인에서도 열리게 한다. 파일을 고치면 VERSION을 올릴 것.
-const VERSION = 'qt-diary-v3';
+const VERSION = 'qt-diary-v4';
 const FILES = [
   './',
   'index.html',
